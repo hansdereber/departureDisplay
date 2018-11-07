@@ -6,30 +6,26 @@
 #include <BLEServer.h>
 #include "SSD1306.h"
 
-WiFiClientSecure client;
-SSD1306  display(0x3c, 5, 4);
-
-const char* ssid     = "affenstunk";
-const char* password = "Schluss3ndlichkeit";
-
-const char* host = "www.mvg.de";
-const char* url = "fahrinfo/api/departure/1109?footway=0";
-const char* apiKey = "5af1beca494712ed38d313714d4caff6";
-
-const size_t capacity = 
+// constants
+const char* SSID PROGMEM = "affenstunk";
+const char* PASSWORD PROGMEM = "Schluss3ndlichkeit";
+const char* HOST PROGMEM = "www.mvg.de";
+const char* URL PROGMEM = "fahrinfo/api/departure/1109?footway=0";
+const char* API_KEY PROGMEM = "5af1beca494712ed38d313714d4caff6";
+const char* SERVICE_UUID PROGMEM = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const char* CHARACTERISTIC_UUID PROGMEM = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const char* BLE_DEVICE_NAME PROGMEM = "Departures";
+const size_t CAPACITY PROGMEM = 
   JSON_ARRAY_SIZE(2) + 
   JSON_ARRAY_SIZE(20) + 
   JSON_OBJECT_SIZE(2) + 
   2*JSON_OBJECT_SIZE(6) + 
   20*JSON_OBJECT_SIZE(8) +
   3000;
-
-const String request = String("GET https://") + host + "/" + url + " HTTP/1.1\r\n" +
-             "Host: " + host + "\r\n" +
-             "X-MVG-Authorization-Key: " + apiKey + "\r\n" +
+const String request PROGMEM = String(F("GET https://")) + HOST + "/" + URL + " HTTP/1.1\r\n" +
+             "Host: " + HOST + "\r\n" +
+             "X-MVG-Authorization-Key: " + API_KEY + "\r\n" +
              "Connection: close\r\n\r\n";
-
-BLECharacteristic *pCharacteristic;
 
 struct Connection {
    const char* lineNumber;
@@ -37,14 +33,14 @@ struct Connection {
    TimeSpan timespanToDeparture;
 };
 
+// global variables
+WiFiClientSecure client;
+BLECharacteristic *pCharacteristic;
+DateTime serverTime;
 struct Connection connections[30];
 int numOfConnections;
-String displayText;
-
-DateTime serverTime;
-
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+SSD1306  display(0x3c, 5, 4);
+char displayText[64];
 
 void setup() {
   Serial.begin(115200);
@@ -54,12 +50,12 @@ void setup() {
 }
 
 boolean isRelevantDestination(String destination) {
-  return (destination == "Ostbahnhof" ||
-    destination == "Messestadt West" ||
-    destination == "Karlsplatz (Stachus)" ||
-    destination == "Trudering Bf." ||
-    destination == "Giesing Bf." ||
-    destination == "Ostfriedhof");
+  return (destination == F("Ostbahnhof") ||
+    destination == F("Messestadt West") ||
+    destination == F("Karlsplatz (Stachus)") ||
+    destination == F("Trudering Bf.") ||
+    destination == F("Giesing Bf.") ||
+    destination == F("Ostfriedhof"));
 }
 
 void initDisplay() {
@@ -69,14 +65,14 @@ void initDisplay() {
 }
 
 void connectToWifi() {
-  WiFi.begin(ssid, password);
+  WiFi.begin(SSID, PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
       delay(500);
   }
 }
 
 void initBluetoothLowEnergy() {
-  BLEDevice::init("MyESP32");
+  BLEDevice::init(BLE_DEVICE_NAME);
   BLEServer *pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
@@ -86,11 +82,12 @@ void initBluetoothLowEnergy() {
 }
 
 void loop() {
-  display.setPixel(127,63);
+  display.drawLine(0,63,127,63);
+//  display.setPixel(127,63);
   display.display();
-  Serial.println("requesting departures");
+  Serial.println(F("requesting departures"));
   getDepartures();
-  Serial.println("drawing departures");
+  Serial.println(F("drawing departures"));
   createDisplayText();
   drawTextOnDisplay();
   sendDeparturesViaBle();
@@ -100,17 +97,15 @@ void loop() {
 void getDepartures() {
   if (!connectAndSendRequest()) return;
   if (!isStatusOk) return;
-  Serial.println("getting server time");
+  Serial.println(F("getting server time"));
   getDateFromHeader();
-  //Serial.println("Server time: " + String(serverTime));
-  showDate("time: ", serverTime);
   if (!jumpToEndOfHeaders()) return;
-  Serial.println("processing response");
+  Serial.println(F("processing response"));
   extractDeparturesFromResponse();
 }
 
 boolean connectAndSendRequest() {
-  if (!client.connect(host, 443)) {
+  if (!client.connect(HOST, 443)) {
     Serial.println(F("Failed to connect"));
     return false;
   }
@@ -137,7 +132,7 @@ boolean isStatusOk() {
 
 void getDateFromHeader() {
   char buf[5];
-  if (client.find((char *)"\r\nDate: ") && client.readBytes(buf, 5) == 5) {
+  if (client.find("\r\nDate: ") && client.readBytes(buf, 5) == 5) {
     int day = client.parseInt();    // day
     client.readBytes(buf, 1);    // discard
     client.readBytes(buf, 3);    // month
@@ -199,32 +194,27 @@ void extractDeparturesFromResponse() {
   numOfConnections = 0;
   JsonObject& response = fetchResponse();
   JsonArray& departures = response[F("departures")];
+  Serial.print(F("Number of departures: "));
+  Serial.println(sizeof(departures));
   for(int i = 0; i < sizeof(departures); i++) {
     const char* destination = departures[i][F("destination")].as<char*>();
-    Serial.println(String(destination));
     if (isRelevantDestination(destination)) {
       String departureTime = departures[i][F("departureTime")].as<String>().substring(0,10);
-      Serial.print(F("Dep time: "));
-      Serial.println(departureTime);
       DateTime departureDateTime (departureTime.toInt());
       String lineNumber = departures[i][F("label")].as<char*>();
-      Serial.print(F("Line number: "));
-      Serial.println(lineNumber);
-      Serial.print(F("Destination: "));
-      Serial.println(destination);
-      showDate("Server time", serverTime);
-      showDate("Departure time", departureDateTime);
       connections[numOfConnections].lineNumber = departures[i][F("label")].as<char*>();
       connections[numOfConnections].destination = destination;
       connections[numOfConnections].timespanToDeparture = departureDateTime - serverTime;
       numOfConnections++;
     }
   }
+  Serial.print(F("Number of connections: "));
+  Serial.println(numOfConnections);
   client.stop();
 }
 
 JsonObject& fetchResponse() {
-  StaticJsonBuffer<capacity> jsonBuffer;
+  StaticJsonBuffer<CAPACITY> jsonBuffer;
   JsonObject& response = jsonBuffer.parseObject(client);
   if (!response.success()) {
     Serial.println(F("Parsing failed!"));
@@ -233,77 +223,24 @@ JsonObject& fetchResponse() {
 }
 
 void createDisplayText() {
-  displayText = "";
+  displayText[0] = '\0';
   for(int i=0; i<numOfConnections && i<2; i++){
-    displayText += String(connections[i].lineNumber) + ": " + connections[i].timespanToDeparture.minutes() + " min";
-    Serial.println();
-    Serial.println(F("Line: "));
-    Serial.println(connections[i].lineNumber);
-    Serial.println(F("Destination: "));
-    Serial.println(connections[i].destination);
-    showTimeSpan("Timespan to departure: ", connections[i].timespanToDeparture);
-    displayText += "\n";
+    char row[32];
+    sprintf(row, "%s: %d min\n", connections[i].lineNumber, connections[i].timespanToDeparture.minutes());
+    strcat(displayText, row);
   }
-  Serial.println();
-  Serial.println("==========================");
+  Serial.println(F("------------"));
+  Serial.println(displayText);
+  Serial.println(F("------------"));
 }
 
 void drawTextOnDisplay() {
-  char buf[64];
-  displayText.toCharArray(buf, 64);
-
   display.clear();
-  display.drawString(0, 0, buf);
+  display.drawString(0, 0, displayText);
   display.display();
 }
 
 void sendDeparturesViaBle() {
-  Serial.println("DisplayText: ");
-  Serial.println(displayText);
-  char buf[64];
-  displayText.toCharArray(buf, 64);
-  Serial.println("Buf: ");
-  Serial.println(buf);
-  pCharacteristic->setValue(buf);
+  pCharacteristic->setValue(displayText);
   pCharacteristic->notify();
-}
-
-void showDate(const char* txt, const DateTime& dt) {
-    Serial.print(txt);
-    Serial.print(' ');
-    Serial.print(dt.year(), DEC);
-    Serial.print('/');
-    Serial.print(dt.month(), DEC);
-    Serial.print('/');
-    Serial.print(dt.day(), DEC);
-    Serial.print(' ');
-    Serial.print(dt.hour(), DEC);
-    Serial.print(':');
-    Serial.print(dt.minute(), DEC);
-    Serial.print(':');
-    Serial.print(dt.second(), DEC);
-    
-    Serial.print(" = ");
-    Serial.print(dt.unixtime());
-    Serial.print("s / ");
-    Serial.print(dt.unixtime() / 86400L);
-    Serial.print("d since 1970");
-    
-    Serial.println();
-}
-
-void showTimeSpan(const char* txt, const TimeSpan& ts) {
-    Serial.print(txt);
-    Serial.print(" ");
-    Serial.print(ts.days(), DEC);
-    Serial.print(" days ");
-    Serial.print(ts.hours(), DEC);
-    Serial.print(" hours ");
-    Serial.print(ts.minutes(), DEC);
-    Serial.print(" minutes ");
-    Serial.print(ts.seconds(), DEC);
-    Serial.print(" seconds (");
-    Serial.print(ts.totalseconds(), DEC);
-    Serial.print(" total seconds)");
-    Serial.println();
 }

@@ -16,6 +16,14 @@ const char* host = "www.mvg.de";
 const char* url = "fahrinfo/api/departure/1109?footway=0";
 const char* apiKey = "5af1beca494712ed38d313714d4caff6";
 
+const size_t capacity = 
+  JSON_ARRAY_SIZE(2) + 
+  JSON_ARRAY_SIZE(20) + 
+  JSON_OBJECT_SIZE(2) + 
+  2*JSON_OBJECT_SIZE(6) + 
+  20*JSON_OBJECT_SIZE(8) +
+  3000;
+
 const String request = String("GET https://") + host + "/" + url + " HTTP/1.1\r\n" +
              "Host: " + host + "\r\n" +
              "X-MVG-Authorization-Key: " + apiKey + "\r\n" +
@@ -24,8 +32,8 @@ const String request = String("GET https://") + host + "/" + url + " HTTP/1.1\r\
 BLECharacteristic *pCharacteristic;
 
 struct Connection {
-   String lineNumber;
-   String destination;
+   const char* lineNumber;
+   const char* destination;
    TimeSpan timespanToDeparture;
 };
 
@@ -180,8 +188,7 @@ void getDateFromHeader() {
 }
 
 boolean jumpToEndOfHeaders() {
-  char endOfHeaders[] = "\r\n\r\n";
-  if (!client.find(endOfHeaders)) {
+  if (!client.find("\r\n\r\n")) {
     Serial.println(F("Invalid response"));
     return false;
   }
@@ -190,43 +197,38 @@ boolean jumpToEndOfHeaders() {
 
 void extractDeparturesFromResponse() {
   numOfConnections = 0;
-  Serial.println("fetching payload");
   JsonObject& response = fetchResponse();
-  Serial.println("extract departures");
-  JsonArray& departures = response["departures"];
-  Serial.println("Size of departures array: " + String(sizeof(departures)));
+  JsonArray& departures = response[F("departures")];
   for(int i = 0; i < sizeof(departures); i++) {
-    String destination = departures[i]["destination"].as<String>();
+    const char* destination = departures[i][F("destination")].as<char*>();
     Serial.println(String(destination));
     if (isRelevantDestination(destination)) {
-      String departureTime = departures[i]["departureTime"].as<String>().substring(0,10);
-      Serial.println("Dep time: " + departureTime);
+      String departureTime = departures[i][F("departureTime")].as<String>().substring(0,10);
+      Serial.print(F("Dep time: "));
+      Serial.println(departureTime);
       DateTime departureDateTime (departureTime.toInt());
-      String lineNumber = departures[i]["label"].as<String>();
-      Serial.println("Line number: " + lineNumber);
-      Serial.println("Destination: " + destination);
+      String lineNumber = departures[i][F("label")].as<char*>();
+      Serial.print(F("Line number: "));
+      Serial.println(lineNumber);
+      Serial.print(F("Destination: "));
+      Serial.println(destination);
       showDate("Server time", serverTime);
       showDate("Departure time", departureDateTime);
-      Serial.println("Numbers of connections: " + String(numOfConnections));
-      connections[numOfConnections].lineNumber = lineNumber;
+      connections[numOfConnections].lineNumber = departures[i][F("label")].as<char*>();
       connections[numOfConnections].destination = destination;
       connections[numOfConnections].timespanToDeparture = departureDateTime - serverTime;
       numOfConnections++;
-      Serial.println("done");
     }
   }
   client.stop();
 }
 
 JsonObject& fetchResponse() {
-  const size_t capacity = JSON_ARRAY_SIZE(2) + JSON_ARRAY_SIZE(20) + JSON_OBJECT_SIZE(2) + 2*JSON_OBJECT_SIZE(6) + 20*JSON_OBJECT_SIZE(8);
-  DynamicJsonBuffer jsonBuffer(capacity);
-  
+  StaticJsonBuffer<capacity> jsonBuffer;
   JsonObject& response = jsonBuffer.parseObject(client);
   if (!response.success()) {
     Serial.println(F("Parsing failed!"));
   }
-
   return response;
 }
 
@@ -235,8 +237,10 @@ void createDisplayText() {
   for(int i=0; i<numOfConnections && i<2; i++){
     displayText += String(connections[i].lineNumber) + ": " + connections[i].timespanToDeparture.minutes() + " min";
     Serial.println();
-    Serial.println("Line: " + connections[i].lineNumber);
-    Serial.println("Destination: " + connections[i].destination);
+    Serial.println(F("Line: "));
+    Serial.println(connections[i].lineNumber);
+    Serial.println(F("Destination: "));
+    Serial.println(connections[i].destination);
     showTimeSpan("Timespan to departure: ", connections[i].timespanToDeparture);
     displayText += "\n";
   }
@@ -245,8 +249,11 @@ void createDisplayText() {
 }
 
 void drawTextOnDisplay() {
+  char buf[64];
+  displayText.toCharArray(buf, 64);
+
   display.clear();
-  display.drawString(0, 0, displayText);
+  display.drawString(0, 0, buf);
   display.display();
 }
 

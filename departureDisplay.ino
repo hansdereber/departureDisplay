@@ -22,6 +22,7 @@ const size_t CAPACITY PROGMEM =
   2*JSON_OBJECT_SIZE(6) + 
   20*JSON_OBJECT_SIZE(8) +
   3000;
+ 
 const String request PROGMEM = String(F("GET https://")) + HOST + "/" + URL + " HTTP/1.1\r\n" +
              "Host: " + HOST + "\r\n" +
              "X-MVG-Authorization-Key: " + API_KEY + "\r\n" +
@@ -37,7 +38,7 @@ struct Connection {
 WiFiClientSecure client;
 BLECharacteristic *pCharacteristic;
 DateTime serverTime;
-struct Connection connections[30];
+struct Connection connections[15];
 int numOfConnections;
 SSD1306  display(0x3c, 5, 4);
 char displayText[64];
@@ -47,6 +48,8 @@ void setup() {
   initDisplay();
   connectToWifi();
   initBluetoothLowEnergy();
+  Serial.println(F("Reserved space for JSON Object: "));
+  Serial.println(String(CAPACITY));
 }
 
 boolean isRelevantDestination(String destination) {
@@ -82,26 +85,35 @@ void initBluetoothLowEnergy() {
 }
 
 void loop() {
-  display.drawLine(0,63,127,63);
-//  display.setPixel(127,63);
+  display.setPixel(127,63);
   display.display();
   Serial.println(F("requesting departures"));
-  getDepartures();
-  Serial.println(F("drawing departures"));
-  createDisplayText();
-  drawTextOnDisplay();
-  sendDeparturesViaBle();
-  delay(10000);
+  if (getDepartures()) {
+    Serial.println(F("drawing departures"));
+    createDisplayText();
+    drawTextOnDisplay();
+    sendDeparturesViaBle();
+    delay(10000);
+  }
+  else {
+    display.drawLine(0,63,127,0);
+    display.drawLine(0,0,127,63);
+    display.display();
+    delay(60000);
+  }
 }
 
-void getDepartures() {
-  if (!connectAndSendRequest()) return;
-  if (!isStatusOk) return;
+boolean getDepartures() {
+  if (!connectAndSendRequest()) return false;
+  Serial.println(F("checking response status"));
+  if (!isStatusOk()) return false;
   Serial.println(F("getting server time"));
-  getDateFromHeader();
-  if (!jumpToEndOfHeaders()) return;
+  if (!getDateFromHeader()) return false;
+  Serial.println(F("jumping to end of headers"));
+  if (!jumpToEndOfHeaders()) return false;
   Serial.println(F("processing response"));
-  extractDeparturesFromResponse();
+  if(!extractDeparturesFromResponse()) return false;
+  return true;
 }
 
 boolean connectAndSendRequest() {
@@ -121,8 +133,8 @@ boolean connectAndSendRequest() {
 
 boolean isStatusOk() {
   char status[32] = {0};
-  client.readBytesUntil('\r', status, sizeof(status));
-  if (strcmp(status, "HTTP/1.1 200 200") != 0) {
+  client.readBytesUntil('\n', status, sizeof(status));
+  if (strcmp(status, "HTTP/1.1 200 200\r") != 0) {
     Serial.print(F("Unexpected response: "));
     Serial.println(status);
     return false;
@@ -130,15 +142,17 @@ boolean isStatusOk() {
   return true;
 }
 
-void getDateFromHeader() {
+boolean getDateFromHeader() {
   char buf[5];
-  if (client.find("\r\nDate: ") && client.readBytes(buf, 5) == 5) {
+  if (client.find("Date: ") && client.readBytes(buf, 5) == 5) {
     int day = client.parseInt();    // day
     client.readBytes(buf, 1);    // discard
     client.readBytes(buf, 3);    // month
     int year = client.parseInt();    // year
     int hour = client.parseInt();   // hour
     int minute = client.parseInt(); // minute
+    Serial.print("Date found with minute: ");
+    Serial.println(String(minute));
     int second = client.parseInt(); // second
     int month;
     switch (buf[0]) {
@@ -179,7 +193,9 @@ void getDateFromHeader() {
         }
     }
     serverTime = DateTime (year, month, day, hour, minute, second);
+    return true;
   }
+  return false;
 }
 
 boolean jumpToEndOfHeaders() {
@@ -187,12 +203,17 @@ boolean jumpToEndOfHeaders() {
     Serial.println(F("Invalid response"));
     return false;
   }
-  return true;  
+  return true;
 }
 
-void extractDeparturesFromResponse() {
+boolean extractDeparturesFromResponse() {
   numOfConnections = 0;
-  JsonObject& response = fetchResponse();
+  StaticJsonBuffer<CAPACITY> jsonBuffer;
+  JsonObject& response = jsonBuffer.parseObject(client);
+  if (!response.success()) {
+    Serial.println(F("Parsing failed!"));
+    return false;
+  }
   JsonArray& departures = response[F("departures")];
   Serial.print(F("Number of departures: "));
   Serial.println(sizeof(departures));
@@ -211,15 +232,7 @@ void extractDeparturesFromResponse() {
   Serial.print(F("Number of connections: "));
   Serial.println(numOfConnections);
   client.stop();
-}
-
-JsonObject& fetchResponse() {
-  StaticJsonBuffer<CAPACITY> jsonBuffer;
-  JsonObject& response = jsonBuffer.parseObject(client);
-  if (!response.success()) {
-    Serial.println(F("Parsing failed!"));
-  }
-  return response;
+  return true;
 }
 
 void createDisplayText() {

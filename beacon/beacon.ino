@@ -46,7 +46,6 @@ char displayText[64];
 void setup() {
   Serial.begin(115200);
   initDisplay();
-  connectToWifi();
   initBluetoothLowEnergy();
   Serial.println(F("Reserved space for JSON Object: "));
   Serial.println(String(CAPACITY));
@@ -67,11 +66,19 @@ void initDisplay() {
   display.setTextAlignment(TEXT_ALIGN_LEFT);
 }
 
+void checkAndConnectToWifi() {
+  if (WiFi.status() != WL_CONNECTED) {
+      Serial.println(F("Reconnect with WiFi"));
+      connectToWifi();
+  }
+}
+
 void connectToWifi() {
   WiFi.begin(SSID, PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
       delay(500);
   }
+  Serial.println(F("Connection with WiFi established"));
 }
 
 void initBluetoothLowEnergy() {
@@ -87,9 +94,10 @@ void initBluetoothLowEnergy() {
 void loop() {
   display.setPixel(127,63);
   display.display();
-  Serial.println(F("requesting departures"));
+  checkAndConnectToWifi();
+  Serial.println(F("Requesting departures"));
   if (getDepartures()) {
-    Serial.println(F("drawing departures"));
+    Serial.println(F("Drawing departures"));
     createDisplayText();
     drawTextOnDisplay();
     sendDeparturesViaBle();
@@ -105,22 +113,25 @@ void loop() {
 
 boolean getDepartures() {
   if (!connectAndSendRequest()) return false;
-  Serial.println(F("checking response status"));
+  Serial.println(F("Checking response status"));
   if (!isStatusOk()) return false;
-  Serial.println(F("getting server time"));
+  Serial.println(F("Getting server time"));
   if (!getDateFromHeader()) return false;
-  Serial.println(F("jumping to end of headers"));
+  Serial.println(F("Jumping to end of headers"));
   if (!jumpToEndOfHeaders()) return false;
-  Serial.println(F("processing response"));
+  Serial.println(F("Processing response"));
   if(!extractDeparturesFromResponse()) return false;
   return true;
 }
 
 boolean connectAndSendRequest() {
+  client.stop();
+
   if (!client.connect(HOST, 443)) {
     Serial.println(F("Failed to connect"));
     return false;
   }
+
   client.print(request);
   
   if (client.println() == 0) {

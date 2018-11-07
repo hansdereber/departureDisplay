@@ -12,8 +12,8 @@ const char* PASSWORD PROGMEM = "Schluss3ndlichkeit";
 const char* HOST PROGMEM = "www.mvg.de";
 const char* URL PROGMEM = "fahrinfo/api/departure/1109?footway=0";
 const char* API_KEY PROGMEM = "5af1beca494712ed38d313714d4caff6";
-const char* SERVICE_UUID PROGMEM = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const char* CHARACTERISTIC_UUID PROGMEM = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const char* SERVICE_UUID PROGMEM = "2e80f571-d90f-4a75-818b-e90434e5ffaa";
+const char* DISPLAY_TEXT_UUID PROGMEM = "c623addf-a88a-4d26-b78e-15baf8195cdd";
 const char* BLE_DEVICE_NAME PROGMEM = "Departures";
 const size_t CAPACITY PROGMEM = 
   JSON_ARRAY_SIZE(2) + 
@@ -36,7 +36,7 @@ struct Connection {
 
 // global variables
 WiFiClientSecure client;
-BLECharacteristic *pCharacteristic;
+BLECharacteristic *pDisplayText;
 DateTime serverTime;
 struct Connection connections[15];
 int numOfConnections;
@@ -78,7 +78,7 @@ void initBluetoothLowEnergy() {
   BLEDevice::init(BLE_DEVICE_NAME);
   BLEServer *pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
-  pCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+  pDisplayText = pService->createCharacteristic(DISPLAY_TEXT_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
   pService->start();
   BLEAdvertising *pAdvertising = pServer->getAdvertising();
   pAdvertising->start();
@@ -254,6 +254,6 @@ void drawTextOnDisplay() {
 }
 
 void sendDeparturesViaBle() {
-  pCharacteristic->setValue(displayText);
-  pCharacteristic->notify();
+  pDisplayText->setValue(displayText);
+  pDisplayText->notify();
 }

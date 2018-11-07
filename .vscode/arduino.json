@@ -1,7 +1,7 @@
 {
     "board": "espressif:esp32:lolin32",
     "configuration": "FlashFreq=80,PartitionScheme=no_ota,UploadSpeed=921600",
-    "sketch": "departureDisplay.ino",
+    "sketch": "departureBeacon.ino",
     "port": "/dev/ttyUSB0",
     "output": "../build"
 }

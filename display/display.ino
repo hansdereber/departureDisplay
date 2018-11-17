@@ -12,61 +12,52 @@
  any redistribution
 *********************************************************************/
 
-#include <bluefruit.h>
+#include <SPI.h>
+#include "epd4in2.h"
+#include "epdpaint.h"
 
-void setup() 
+#define COLORED 0
+#define UNCOLORED 1
+
+Epd epd;
+
+void setup()
 {
   Serial.begin(115200);
 
-  Serial.println("Bluefruit52 Central Scan Example");
-  Serial.println("--------------------------------\n");
-
-  // Initialize Bluefruit with maximum connections as Peripheral = 0, Central = 1
-  // SRAM usage required by SoftDevice will increase dramatically with number of connections
-  Bluefruit.begin(0, 1);
-  
-  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
-  Bluefruit.setTxPower(4);
-  Bluefruit.setName("Bluefruit52");
-
-  // Start Central Scan
-  Bluefruit.setConnLedInterval(250);
-  Bluefruit.Scanner.setRxCallback(scan_callback);
-  Bluefruit.Scanner.start(0);
-
-  Serial.println("Scanning ...");
-}
-
-void scan_callback(ble_gap_evt_adv_report_t* report)
-{
-  Serial.println("Timestamp Addr              Rssi Data");
-
-  Serial.printf("%09d ", millis());
-  
-  // MAC is in little endian --> print reverse
-  Serial.printBufferReverse(report->peer_addr.addr, 6, ':');
-  Serial.print(" ");
-
-  Serial.print(report->rssi);
-  Serial.print("  ");
-
-  Serial.printBuffer(report->data, report->dlen, '-');
-  Serial.println();
-
-  // Check if advertising contain BleUart service
-  if ( Bluefruit.Scanner.checkReportForUuid(report, BLEUART_UUID_SERVICE) )
+  if (epd.Init() != 0)
   {
-    Serial.println("                       BLE UART service detected");
+    Serial.print("e-Paper init failed");
+    return;
   }
 
-  Serial.println();
+  /* This clears the SRAM of the e-paper display */
+  epd.ClearFrame();
 }
 
-void loop() 
+int i = 0;
+
+void loop()
 {
-  // Toggle both LEDs every 1 second
-  digitalToggle(LED_RED);
 
-  delay(1000);
+  unsigned char image[120000];
+  Paint paint(image, 400, 300); //width should be the multiple of 8
+  paint.SetWidth(400);
+  paint.SetHeight(300);
+  paint.Clear(UNCOLORED);
+
+  char buffer[100];
+
+  sprintf(buffer, "Karlsplatz (Stachus) \n test blablabla \n tzestt");
+  paint.DrawStringAt(0, 0, buffer, &Font24, COLORED);
+  sprintf(buffer, "18");
+  paint.DrawStringAt(0, 100, buffer, &Font24, COLORED);
+  sprintf(buffer, "%d min", i);
+  paint.DrawStringAt(280, 100, buffer, &Font24, COLORED);
+  epd.SetPartialWindow(paint.GetImage(), 0, 0, paint.GetWidth(), paint.GetHeight(), 2);
+  epd.WaitUntilIdle();
+
+  epd.DisplayFrameQuick();
+
+  i++;
 }
-

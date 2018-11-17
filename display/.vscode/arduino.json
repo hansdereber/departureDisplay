@@ -1,0 +1,7 @@
+{
+    "sketch": "display.ino",
+    "board": "Adafruit:Adafruit_nRF52_Arduino:feather52",
+    "configuration": "softdevice=s132v510,debug=l0",
+    "port": "/dev/ttyUSB0",
+    "output": "../build"
+}

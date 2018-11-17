@@ -33,14 +33,14 @@ void setup()
 
   /* This clears the SRAM of the e-paper display */
   epd.ClearFrame();
+  epd.DisplayFrame();
 }
 
 int i = 0;
+unsigned char image[16000];
 
 void loop()
 {
-
-  unsigned char image[120000];
   Paint paint(image, 400, 300); //width should be the multiple of 8
   paint.SetWidth(400);
   paint.SetHeight(300);
@@ -48,16 +48,43 @@ void loop()
 
   char buffer[100];
 
-  sprintf(buffer, "Karlsplatz (Stachus) \n test blablabla \n tzestt");
-  paint.DrawStringAt(0, 0, buffer, &Font24, COLORED);
+  sprintf(buffer, "Karlsplatz (Sta...");
+  paint.DrawStringAt(0, 0, buffer, &LiberationMedium, COLORED);
   sprintf(buffer, "18");
-  paint.DrawStringAt(0, 100, buffer, &Font24, COLORED);
-  sprintf(buffer, "%d min", i);
-  paint.DrawStringAt(280, 100, buffer, &Font24, COLORED);
+  paint.DrawStringAt(0, 35, buffer, &LiberationLarge, COLORED);
+  if (i < 10)
+  {
+    sprintf(buffer, " %d", i);
+  }
+  else
+  {
+    sprintf(buffer, "%d", i);
+  }
+  paint.DrawStringAt(157, 35, buffer, &LiberationLarge, COLORED);
+  sprintf(buffer, "min");
+  paint.DrawStringAt(260, 35, buffer, &LiberationLarge, COLORED);
+  sprintf(buffer, "Karlsplatz (Sta...");
+  paint.DrawStringAt(0, 180, buffer, &LiberationMedium, COLORED);
+  sprintf(buffer, "18");
+  paint.DrawStringAt(0, 215, buffer, &LiberationLarge, COLORED);
+  if (i < 10)
+  {
+    sprintf(buffer, " %d", i);
+  }
+  else
+  {
+    sprintf(buffer, "%d", i);
+  }
+  paint.DrawStringAt(157, 215, buffer, &LiberationLarge, COLORED);
+  sprintf(buffer, "min");
+  paint.DrawStringAt(260, 215, buffer, &LiberationLarge, COLORED);
   epd.SetPartialWindow(paint.GetImage(), 0, 0, paint.GetWidth(), paint.GetHeight(), 2);
-  epd.WaitUntilIdle();
-
   epd.DisplayFrameQuick();
-
+  epd.WaitUntilIdle();
+  epd.Sleep();
   i++;
+  delay(2000);
+
+  epd.Reset();
+  epd.Init();
 }

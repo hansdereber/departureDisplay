@@ -12,12 +12,18 @@ char buffer[128];
 
 BLEClientUart clientUart;
 
+struct Connection
+{
+  char line[4];
+  uint16_t destinationId;
+  uint32_t departureTime;
+  uint8_t minutesToDeparture;
+};
+struct Connection connections[2];
+
 void setup()
 {
   Serial.begin(115200);
-
-  Serial.print("BLE_GATT_ATT_MTU_MAX: ");
-  Serial.println(String(BLE_GATT_ATT_MTU_MAX));
 
   if (epd.Init() != 0)
   {
@@ -66,45 +72,45 @@ void bleUartRxCallback(BLEClientUart &uart_svc)
     uart_svc.read(payload, 20);
 
     char line1[4];
-    uint16_t stationId1;
+    uint16_t destinationId1;
     uint32_t departureTime1;
-    uint8_t timeTillDeparture1;
+    uint8_t minutesToDeparture1;
     char line2[4];
-    uint16_t stationId2;
+    uint16_t destinationId2;
     uint32_t departureTime2;
-    uint8_t timeTillDeparture2;
+    uint8_t minutesToDeparture2;
 
-    line1[0] = payload[0];
-    line1[1] = payload[1];
-    line1[2] = payload[2];
-    line1[3] = '\0';
-    stationId1 = (payload[4] << 8) | payload[3];
-    departureTime1 = (payload[8] << 24) | (payload[7] << 16) | (payload[6] << 8) | payload[5];
-    timeTillDeparture1 = payload[9];
-    line2[0] = payload[10];
-    line2[1] = payload[11];
-    line2[2] = payload[12];
-    line2[3] = '\0';
-    stationId2 = (payload[14] << 8) | payload[13];
-    departureTime2 = (payload[18] << 24) | (payload[17] << 16) | (payload[16] << 8) | payload[15];
-    timeTillDeparture2 = payload[19];
+    connections[0].line[0] = line1[0] = payload[0];
+    connections[0].line[1] = payload[1];
+    connections[0].line[2] = payload[2];
+    connections[0].line[3] = '\0';
+    connections[0].destinationId = (payload[4] << 8) | payload[3];
+    connections[0].departureTime = (payload[8] << 24) | (payload[7] << 16) | (payload[6] << 8) | payload[5];
+    connections[0].minutesToDeparture = payload[9];
+    connections[1].line[0] = payload[10];
+    connections[1].line[1] = payload[11];
+    connections[1].line[2] = payload[12];
+    connections[1].line[3] = '\0';
+    connections[1].destinationId = (payload[14] << 8) | payload[13];
+    connections[1].departureTime = (payload[18] << 24) | (payload[17] << 16) | (payload[16] << 8) | payload[15];
+    connections[1].minutesToDeparture = payload[19];
 
     Serial.print("line1: ");
-    Serial.println(line1);
-    Serial.print("stationId1: ");
-    Serial.println(String(stationId1));
+    Serial.println(connections[0].line);
+    Serial.print("destinationId1: ");
+    Serial.println(String(connections[0].destinationId));
     Serial.print("departureTime1: ");
-    Serial.println(String(departureTime1));
-    Serial.print("timeTillDeparture1: ");
-    Serial.println(String(timeTillDeparture1));
+    Serial.println(String(connections[0].departureTime));
+    Serial.print("minutesToDeparture1: ");
+    Serial.println(String(connections[0].minutesToDeparture));
     Serial.print("line2: ");
-    Serial.println(String(line2));
-    Serial.print("stationId2: ");
-    Serial.println(String(stationId2));
+    Serial.println(connections[1].line);
+    Serial.print("destinationId2: ");
+    Serial.println(String(connections[1].destinationId));
     Serial.print("departureTime2: ");
-    Serial.println(String(departureTime2));
-    Serial.print("timeTillDeparture2: ");
-    Serial.println(String(timeTillDeparture2));
+    Serial.println(String(connections[1].departureTime));
+    Serial.print("minutesToDeparture2: ");
+    Serial.println(String(connections[1].minutesToDeparture));
 
     uart_svc.flush();
   }

@@ -15,7 +15,7 @@ const char *URL PROGMEM = "fahrinfo/api/departure/1109?footway=0";
 const char *API_KEY PROGMEM = "5af1beca494712ed38d313714d4caff6";
 const char *SERVICE_UUID PROGMEM = "2e80f571-d90f-4a75-818b-e90434e5ffaa";
 const char *DISPLAY_TEXT_UUID PROGMEM = "c623addf-a88a-4d26-b78e-15baf8195cdd";
-const char *BLE_DEVICE_NAME PROGMEM = "Departures Central";
+const char *BLE_DEVICE_NAME PROGMEM = "departures central";
 const char *PERIPHERAL_ADDRESS PROGMEM = "e9:fa:f5:f5:4f:ba";
 const size_t CAPACITY PROGMEM =
     JSON_ARRAY_SIZE(2) +
@@ -47,6 +47,7 @@ SSD1306 display(0x3c, 5, 4);
 char displayText[64];
 static BLEAddress *pPeripheralAddress;
 BLEServer *pServer = NULL;
+BLEService *pService = NULL;
 BLECharacteristic *pTxCharacteristic;
 BLECharacteristic *pRxCharacteristic;
 static boolean doConnect = false;
@@ -127,7 +128,7 @@ void initBluetoothLowEnergy()
   pBLEScan->start(30);
 
   pServer = BLEDevice::createServer();
-  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pService = pServer->createService(SERVICE_UUID);
   pTxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY);
   pTxCharacteristic->addDescriptor(new BLE2902());
   pRxCharacteristic = pService->createCharacteristic(CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE);
@@ -152,10 +153,48 @@ void loop()
   }
 
   delay(2000);
-  Serial.println("setting value to: T");
-  pTxCharacteristic->setValue("T");
-  pTxCharacteristic->notify();
+  size_t size = 60;
+  Serial.println("setting value to:");
+  Serial.print("ESP_GATT_MAX_ATTR_LEN: ");
+  Serial.println(String(ESP_GATT_MAX_ATTR_LEN));
 
+
+  uint8_t* line = (uint8_t*) "123";
+  uint16_t stationId = 3042;
+  uint8_t timeTillDeparture = 7;
+  uint32_t departureTime = 1542570180;
+
+	uint8_t payload[20];
+  payload[0]=line[0];
+  payload[1]=line[1];
+  payload[2]=line[2];
+	payload[3]=stationId;
+	payload[4]=stationId>>8;
+  payload[5]=departureTime;
+  payload[6]=departureTime>>8;
+  payload[7]=departureTime>>16;
+  payload[8]=departureTime>>24;
+  payload[9]=timeTillDeparture;
+  payload[10]=line[0];
+  payload[11]=line[1];
+  payload[12]=line[2];
+	payload[13]=stationId;
+	payload[14]=stationId>>8;
+  payload[15]=departureTime;
+  payload[16]=departureTime>>8;
+  payload[17]=departureTime>>16;
+  payload[18]=departureTime>>24;
+  payload[19]=timeTillDeparture;
+
+	pTxCharacteristic->setValue(payload, 20);
+
+
+
+  pTxCharacteristic->setValue((uint8_t*) payload, size);
+  pTxCharacteristic->notify();
+  delay(2000);
+
+  /*  
   display.setPixel(127, 63);
   display.display();
   checkAndConnectToWifi();
@@ -175,6 +214,7 @@ void loop()
     display.display();
     delay(60000);
   }
+  */
 }
 
 bool connectToServer(BLEAddress pAddress)

@@ -16,6 +16,9 @@ void setup()
 {
   Serial.begin(115200);
 
+  Serial.print("BLE_GATT_ATT_MTU_MAX: ");
+  Serial.println(String(BLE_GATT_ATT_MTU_MAX));
+
   if (epd.Init() != 0)
   {
     Serial.print("e-Paper init failed");
@@ -57,20 +60,54 @@ void connectCallback(uint16_t conn_handle)
 
 void bleUartRxCallback(BLEClientUart &uart_svc)
 {
-  Serial.print("[RX]: ");
-
   if (uart_svc.available())
   {
-    sprintf(buffer, "receiving something %c", (char)uart_svc.read());
-    displayString(buffer);
-  }
+    uint8_t payload[20];
+    uart_svc.read(payload, 20);
 
-  while (uart_svc.available())
-  {
-    Serial.print((char)uart_svc.read());
-  }
+    char line1[4];
+    uint16_t stationId1;
+    uint32_t departureTime1;
+    uint8_t timeTillDeparture1;
+    char line2[4];
+    uint16_t stationId2;
+    uint32_t departureTime2;
+    uint8_t timeTillDeparture2;
 
-  Serial.println();
+    line1[0] = payload[0];
+    line1[1] = payload[1];
+    line1[2] = payload[2];
+    line1[3] = '\0';
+    stationId1 = (payload[4] << 8) | payload[3];
+    departureTime1 = (payload[8] << 24) | (payload[7] << 16) | (payload[6] << 8) | payload[5];
+    timeTillDeparture1 = payload[9];
+    line2[0] = payload[10];
+    line2[1] = payload[11];
+    line2[2] = payload[12];
+    line2[3] = '\0';
+    stationId2 = (payload[14] << 8) | payload[13];
+    departureTime2 = (payload[18] << 24) | (payload[17] << 16) | (payload[16] << 8) | payload[15];
+    timeTillDeparture2 = payload[19];
+
+    Serial.print("line1: ");
+    Serial.println(line1);
+    Serial.print("stationId1: ");
+    Serial.println(String(stationId1));
+    Serial.print("departureTime1: ");
+    Serial.println(String(departureTime1));
+    Serial.print("timeTillDeparture1: ");
+    Serial.println(String(timeTillDeparture1));
+    Serial.print("line2: ");
+    Serial.println(String(line2));
+    Serial.print("stationId2: ");
+    Serial.println(String(stationId2));
+    Serial.print("departureTime2: ");
+    Serial.println(String(departureTime2));
+    Serial.print("timeTillDeparture2: ");
+    Serial.println(String(timeTillDeparture2));
+
+    uart_svc.flush();
+  }
 }
 
 void disconnectCallback(uint16_t conn_handle, uint8_t reason)
@@ -90,6 +127,7 @@ void startAdv(void)
 
 void displayString(const char *text)
 {
+  return;
   Paint paint(image, 400, 300);
   paint.SetWidth(400);
   paint.SetHeight(300);

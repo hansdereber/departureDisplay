@@ -9,6 +9,8 @@
         "optional": "cpp",
         "*.tcc": "cpp",
         "hash_map": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "istream": "cpp",
+        "system_error": "cpp"
     }
 }

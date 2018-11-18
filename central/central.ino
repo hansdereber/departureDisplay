@@ -4,7 +4,6 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
-#include "SSD1306.h"
 #include <BLE2902.h>
 
 // constants
@@ -23,7 +22,7 @@ const size_t CAPACITY PROGMEM =
     JSON_OBJECT_SIZE(2) +
     2 * JSON_OBJECT_SIZE(6) +
     20 * JSON_OBJECT_SIZE(8) +
-    0; //3000
+    3000;
 
 const String request PROGMEM = String(F("GET https://")) + HOST + "/" + URL + " HTTP/1.1\r\n" +
                                "Host: " + HOST + "\r\n" +
@@ -32,19 +31,18 @@ const String request PROGMEM = String(F("GET https://")) + HOST + "/" + URL + " 
 
 struct Connection
 {
-  const char *lineNumber;
-  const char *destination;
-  TimeSpan timespanToDeparture;
+  const char *line;
+  uint16_t destinationId;
+  uint32_t departureTime;
+  uint8_t minutesToDeparture;
 };
 
 // global variables
 WiFiClientSecure client;
 BLECharacteristic *pDisplayText;
 DateTime serverTime;
-struct Connection connections[15];
+struct Connection connections[2];
 int numOfConnections;
-SSD1306 display(0x3c, 5, 4);
-char displayText[64];
 static BLEAddress *pPeripheralAddress;
 BLEServer *pServer = NULL;
 BLEService *pService = NULL;
@@ -77,7 +75,6 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 void setup()
 {
   Serial.begin(115200);
-  initDisplay();
   initBluetoothLowEnergy();
   Serial.println(F("Reserved space for JSON Object: "));
   Serial.println(String(CAPACITY));
@@ -91,13 +88,6 @@ boolean isRelevantDestination(String destination)
           destination == F("Trudering Bf.") ||
           destination == F("Giesing Bf.") ||
           destination == F("Ostfriedhof"));
-}
-
-void initDisplay()
-{
-  display.init();
-  display.setFont(ArialMT_Plain_24);
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
 }
 
 void checkAndConnectToWifi()
@@ -152,69 +142,18 @@ void loop()
     doConnect = false;
   }
 
-  delay(2000);
-  size_t size = 60;
-  Serial.println("setting value to:");
-  Serial.print("ESP_GATT_MAX_ATTR_LEN: ");
-  Serial.println(String(ESP_GATT_MAX_ATTR_LEN));
-
-
-  uint8_t* line = (uint8_t*) "123";
-  uint16_t stationId = 3042;
-  uint8_t timeTillDeparture = 7;
-  uint32_t departureTime = 1542570180;
-
-	uint8_t payload[20];
-  payload[0]=line[0];
-  payload[1]=line[1];
-  payload[2]=line[2];
-	payload[3]=stationId;
-	payload[4]=stationId>>8;
-  payload[5]=departureTime;
-  payload[6]=departureTime>>8;
-  payload[7]=departureTime>>16;
-  payload[8]=departureTime>>24;
-  payload[9]=timeTillDeparture;
-  payload[10]=line[0];
-  payload[11]=line[1];
-  payload[12]=line[2];
-	payload[13]=stationId;
-	payload[14]=stationId>>8;
-  payload[15]=departureTime;
-  payload[16]=departureTime>>8;
-  payload[17]=departureTime>>16;
-  payload[18]=departureTime>>24;
-  payload[19]=timeTillDeparture;
-
-	pTxCharacteristic->setValue(payload, 20);
-
-
-
-  pTxCharacteristic->setValue((uint8_t*) payload, size);
-  pTxCharacteristic->notify();
-  delay(2000);
-
-  /*  
-  display.setPixel(127, 63);
-  display.display();
   checkAndConnectToWifi();
   Serial.println(F("Requesting departures"));
   if (getDepartures())
   {
     Serial.println(F("Drawing departures"));
-    createDisplayText();
-    drawTextOnDisplay();
     sendDeparturesViaBle();
     delay(10000);
   }
   else
   {
-    display.drawLine(0, 63, 127, 0);
-    display.drawLine(0, 0, 127, 63);
-    display.display();
-    delay(60000);
+    delay(10000);
   }
-  */
 }
 
 bool connectToServer(BLEAddress pAddress)
@@ -371,17 +310,18 @@ boolean extractDeparturesFromResponse()
   JsonArray &departures = response[F("departures")];
   Serial.print(F("Number of departures: "));
   Serial.println(sizeof(departures));
-  for (int i = 0; i < sizeof(departures); i++)
+  for (int i = 0; i < sizeof(departures) && numOfConnections < 2; i++)
   {
-    const char *destination = departures[i][F("destination")].as<char *>();
+    const char *destination = departures[i]["destination"].as<char *>();
     if (isRelevantDestination(destination))
     {
-      String departureTime = departures[i][F("departureTime")].as<String>().substring(0, 10);
-      DateTime departureDateTime(departureTime.toInt());
-      String lineNumber = departures[i][F("label")].as<char *>();
-      connections[numOfConnections].lineNumber = departures[i][F("label")].as<char *>();
-      connections[numOfConnections].destination = destination;
-      connections[numOfConnections].timespanToDeparture = departureDateTime - serverTime;
+      String departureTime = departures[i]["departureTime"].as<String>().substring(0, 10);
+      TimeSpan timespanToDeparture((DateTime) departureTime.toInt() - serverTime);
+      String lineNumber = departures[i]["label"].as<char *>();
+      connections[numOfConnections].line = departures[i]["label"].as<char *>();
+      connections[numOfConnections].destinationId = 1001;
+      connections[numOfConnections].departureTime = departureTime.toInt();
+      connections[numOfConnections].minutesToDeparture = timespanToDeparture.minutes();
       numOfConnections++;
     }
   }
@@ -391,29 +331,41 @@ boolean extractDeparturesFromResponse()
   return true;
 }
 
-void createDisplayText()
-{
-  displayText[0] = '\0';
-  for (int i = 0; i < numOfConnections && i < 2; i++)
-  {
-    char row[32];
-    sprintf(row, "%s: %d min\n", connections[i].lineNumber, connections[i].timespanToDeparture.minutes());
-    strcat(displayText, row);
-  }
-  Serial.println(F("------------"));
-  Serial.println(displayText);
-  Serial.println(F("------------"));
-}
-
-void drawTextOnDisplay()
-{
-  display.clear();
-  display.drawString(0, 0, displayText);
-  display.display();
-}
-
 void sendDeparturesViaBle()
 {
-  pDisplayText->setValue(displayText);
-  pDisplayText->notify();
+  uint8_t* line1 = (uint8_t*) connections[0].line;
+  uint16_t stationId1 = connections[0].destinationId;
+  uint32_t departureTime1 = connections[0].departureTime;
+  uint8_t timeTillDeparture1 = connections[0].minutesToDeparture;
+  uint8_t* line2 = (uint8_t*) connections[1].line;
+  uint16_t stationId2 = connections[1].destinationId;
+  uint32_t departureTime2 = connections[1].departureTime;
+  uint8_t timeTillDeparture2 = connections[1].minutesToDeparture;
+
+	uint8_t payload[20];
+  payload[0]=line1[0];
+  payload[1]=line1[1];
+  payload[2]=line1[2];
+	payload[3]=stationId1;
+	payload[4]=stationId1>>8;
+  payload[5]=departureTime1;
+  payload[6]=departureTime1>>8;
+  payload[7]=departureTime1>>16;
+  payload[8]=departureTime1>>24;
+  payload[9]=timeTillDeparture1;
+  payload[10]=line2[0];
+  payload[11]=line2[1];
+  payload[12]=line2[2];
+	payload[13]=stationId2;
+	payload[14]=stationId2>>8;
+  payload[15]=departureTime2;
+  payload[16]=departureTime2>>8;
+  payload[17]=departureTime2>>16;
+  payload[18]=departureTime2>>24;
+  payload[19]=timeTillDeparture2;
+
+	pTxCharacteristic->setValue(payload, 20);
+
+  pTxCharacteristic->setValue((uint8_t*) payload, 20);
+  pTxCharacteristic->notify();
 }

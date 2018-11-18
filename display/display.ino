@@ -113,6 +113,7 @@ void bleUartRxCallback(BLEClientUart &uart_svc)
     Serial.println(String(connections[1].minutesToDeparture));
 
     uart_svc.flush();
+    displayConnections();
   }
 }
 
@@ -139,6 +140,32 @@ void displayString(const char *text)
   paint.SetHeight(300);
   paint.Clear(UNCOLORED);
   paint.DrawStringAt(0, 0, text, &LiberationMedium, COLORED);
+  displayFrameQuick(paint);
+}
+
+void displayConnections()
+{
+  Paint paint(image, 400, 300); //width should be the multiple of 8
+  paint.SetWidth(400);
+  paint.SetHeight(300);
+  paint.Clear(UNCOLORED);
+
+  sprintf(buffer, "Station Name");
+  paint.DrawStringAt(0, 0, buffer, &LiberationMedium, COLORED);
+  sprintf(buffer, "18");
+  paint.DrawStringAt(0, 35, connections[0].line, &LiberationLarge, COLORED);
+  sprintf(buffer, "%d", connections[0].minutesToDeparture);
+  paint.DrawStringAt(157, 35, buffer, &LiberationLarge, COLORED);
+  sprintf(buffer, "min");
+  paint.DrawStringAt(260, 35, buffer, &LiberationLarge, COLORED);
+  sprintf(buffer, "Station Name");
+  paint.DrawStringAt(0, 180, buffer, &LiberationMedium, COLORED);
+  sprintf(buffer, "18");
+  paint.DrawStringAt(0, 215, connections[1].line, &LiberationLarge, COLORED);
+  sprintf(buffer, "%d", connections[1].minutesToDeparture);
+  paint.DrawStringAt(157, 215, buffer, &LiberationLarge, COLORED);
+  sprintf(buffer, "min");
+  paint.DrawStringAt(260, 215, buffer, &LiberationLarge, COLORED);
   displayFrameQuick(paint);
 }
 

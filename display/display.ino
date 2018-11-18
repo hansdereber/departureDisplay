@@ -6,16 +6,11 @@
 #define COLORED 0
 #define UNCOLORED 1
 
-#define UUID16_SVC_DISPLAY 0x1218
-#define UUID16_CHR_DISPLAY 0x0218
-
 Epd epd;
 unsigned char image[16000];
 char buffer[128];
 
-BLEClientDis bleClientDis;
-BLEService displayService = BLEService(UUID16_SVC_DISPLAY);
-BLECharacteristic displayCharacteristic = BLECharacteristic(UUID16_CHR_DISPLAY);
+BLEClientUart clientUart;
 
 void setup()
 {
@@ -29,18 +24,15 @@ void setup()
 
   displayString("");
 
-  displayCharacteristic.begin();
-
   Bluefruit.autoConnLed(false);
-  Bluefruit.begin();
+  Bluefruit.begin(1, 0);
   Bluefruit.setTxPower(4);
   Bluefruit.setName("display");
   Bluefruit.setConnectCallback(connectCallback);
   Bluefruit.setDisconnectCallback(disconnectCallback);
 
-  bleClientDis.begin();
-
-  displayService.begin();
+  clientUart.begin();
+  clientUart.setRxCallback(bleUartRxCallback);
 
   startAdv();
 }
@@ -49,28 +41,36 @@ void connectCallback(uint16_t conn_handle)
 {
   displayString("connected");
 
-  if (bleClientDis.discover(conn_handle))
+  if (clientUart.discover(conn_handle))
   {
-    Serial.println("Discovered");
-
-    // Read and print Manufacturer string
-    memset(buffer, 0, sizeof(buffer));
-    if (bleClientDis.getManufacturer(buffer, sizeof(buffer)))
-    {
-      Serial.print("Manufacturer: ");
-      Serial.println(buffer);
-    }
-
-    // Read and print Model Number string
-    memset(buffer, 0, sizeof(buffer));
-    if (bleClientDis.getModel(buffer, sizeof(buffer)))
-    {
-      Serial.print("Model: ");
-      Serial.println(buffer);
-    }
-
-    Serial.println();
+    Serial.println("Found it");
+    Serial.println("Enable TXD's notify");
+    clientUart.enableTXD();
+    Serial.println("Ready to receive from peripheral");
   }
+  else
+  {
+    Serial.println("Found NONE");
+    Bluefruit.Central.disconnect(conn_handle);
+  }
+}
+
+void bleUartRxCallback(BLEClientUart &uart_svc)
+{
+  Serial.print("[RX]: ");
+
+  if (uart_svc.available())
+  {
+    sprintf(buffer, "receiving something %c", (char)uart_svc.read());
+    displayString(buffer);
+  }
+
+  while (uart_svc.available())
+  {
+    Serial.print((char)uart_svc.read());
+  }
+
+  Serial.println();
 }
 
 void disconnectCallback(uint16_t conn_handle, uint8_t reason)
@@ -82,7 +82,6 @@ void startAdv(void)
 {
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addTxPower();
-  Bluefruit.Advertising.addService(displayService);
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
   Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode

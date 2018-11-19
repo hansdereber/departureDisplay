@@ -21,8 +21,28 @@ struct Connection
 };
 struct Connection connections[2];
 
+struct Map
+{
+  uint16_t stationId;
+  const char *name;
+};
+struct Map stationMap[6];
+
 void setup()
 {
+  stationMap[0].stationId = 1;
+  stationMap[0].name = "Karlsplatz";
+  stationMap[1].stationId = 5;
+  stationMap[1].name = "Ostbahnhof";
+  stationMap[2].stationId = 1250;
+  stationMap[2].name = "Messestadt West";
+  stationMap[3].stationId = 920;
+  stationMap[3].name = "Trudering Bf.";
+  stationMap[4].stationId = 1110;
+  stationMap[4].name = "Giesing Bf.";
+  stationMap[5].stationId = 1105;
+  stationMap[5].name = "Ostfriedhof";
+
   Serial.begin(115200);
 
   if (epd.Init() != 0)
@@ -150,23 +170,31 @@ void displayConnections()
   paint.SetHeight(300);
   paint.Clear(UNCOLORED);
 
-  sprintf(buffer, "Station Name");
-  paint.DrawStringAt(0, 0, buffer, &LiberationMedium, COLORED);
-  sprintf(buffer, "18");
+  paint.DrawStringAt(0, 0, findStationNameById(connections[0].destinationId), &LiberationMedium, COLORED);
   paint.DrawStringAt(0, 35, connections[0].line, &LiberationLarge, COLORED);
   sprintf(buffer, "%d", connections[0].minutesToDeparture);
-  paint.DrawStringAt(157, 35, buffer, &LiberationLarge, COLORED);
+  paint.DrawStringAt(175, 35, buffer, &LiberationLarge, COLORED);
   sprintf(buffer, "min");
-  paint.DrawStringAt(260, 35, buffer, &LiberationLarge, COLORED);
-  sprintf(buffer, "Station Name");
-  paint.DrawStringAt(0, 180, buffer, &LiberationMedium, COLORED);
-  sprintf(buffer, "18");
+  paint.DrawStringAt(275, 35, buffer, &LiberationLarge, COLORED);
+  paint.DrawStringAt(0, 180, findStationNameById(connections[1].destinationId), &LiberationMedium, COLORED);
   paint.DrawStringAt(0, 215, connections[1].line, &LiberationLarge, COLORED);
   sprintf(buffer, "%d", connections[1].minutesToDeparture);
-  paint.DrawStringAt(157, 215, buffer, &LiberationLarge, COLORED);
+  paint.DrawStringAt(175, 215, buffer, &LiberationLarge, COLORED);
   sprintf(buffer, "min");
-  paint.DrawStringAt(260, 215, buffer, &LiberationLarge, COLORED);
+  paint.DrawStringAt(275, 215, buffer, &LiberationLarge, COLORED);
   displayFrameQuick(paint);
+}
+
+const char* findStationNameById(uint16_t id)
+{
+  for (int i = 0; i < sizeof(stationMap) / sizeof(stationMap[0]); i++)
+  {
+    if (stationMap[i].stationId == id)
+    {
+      return stationMap[i].name;
+    }
+  }
+  return "---";
 }
 
 void displayFrameQuick(Paint paint)

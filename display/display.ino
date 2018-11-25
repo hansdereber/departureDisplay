@@ -53,7 +53,7 @@ void setup()
 
   displayString("");
 
-  Bluefruit.autoConnLed(false);
+  Bluefruit.autoConnLed(true);
   Bluefruit.begin(1, 0);
   Bluefruit.setTxPower(4);
   Bluefruit.setName("display");
@@ -217,4 +217,7 @@ void sleep()
   epd.Sleep();
 }
 
-void loop() {}
+void loop() {
+    sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
+    __WFI();
+}

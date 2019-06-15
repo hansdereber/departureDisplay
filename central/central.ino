@@ -10,19 +10,19 @@
 const char *SSID PROGMEM = "affenstunk";
 const char *PASSWORD PROGMEM = "Schluss3ndlichkeit";
 const char *HOST PROGMEM = "www.mvg.de";
-const char *URL PROGMEM = "fahrinfo/api/departure/1109?footway=0";
+const char *URL PROGMEM = "fahrinfo/api/departure/634?footway=0";
 const char *API_KEY PROGMEM = "5af1beca494712ed38d313714d4caff6";
 const char *SERVICE_UUID PROGMEM = "2e80f571-d90f-4a75-818b-e90434e5ffaa";
 const char *DISPLAY_TEXT_UUID PROGMEM = "c623addf-a88a-4d26-b78e-15baf8195cdd";
 const char *BLE_DEVICE_NAME PROGMEM = "departures central";
 const char *PERIPHERAL_ADDRESS PROGMEM = "e9:fa:f5:f5:4f:ba";
 const size_t CAPACITY PROGMEM =
-    JSON_ARRAY_SIZE(2) +
-    JSON_ARRAY_SIZE(20) +
-    JSON_OBJECT_SIZE(2) +
-    2 * JSON_OBJECT_SIZE(6) +
-    20 * JSON_OBJECT_SIZE(8) +
-    3000;
+    JSON_ARRAY_SIZE(4) 
+    + JSON_ARRAY_SIZE(18) 
+    + JSON_OBJECT_SIZE(2) 
+    + 4*JSON_OBJECT_SIZE(6) 
+    + 18*JSON_OBJECT_SIZE(8) 
+    + 3500; // calculated with https://arduinojson.org/v6/assistant/ and a little head room
 
 const String request PROGMEM = String(F("GET https://")) + HOST + "/" + URL + " HTTP/1.1\r\n" +
                                "Host: " + HOST + "\r\n" +
@@ -43,7 +43,7 @@ struct Map
   uint16_t stationId;
   const char *name;
 };
-struct Map stationMap[6];
+struct Map stationMap[3];
 
 // global variables
 WiFiClientSecure client;
@@ -82,18 +82,18 @@ void setup()
 
 void initStationMap()
 {
-  stationMap[0].stationId = 1;
-  stationMap[0].name = "Karlsplatz (Stachus)";
-  stationMap[1].stationId = 5;
-  stationMap[1].name = "Ostbahnhof";
+  stationMap[0].stationId = 34;
+  stationMap[0].name = "Nordbad";
+  stationMap[1].stationId = 670;
+  stationMap[1].name = "Arabellapark";
   stationMap[2].stationId = 1250;
   stationMap[2].name = "Messestadt West";
-  stationMap[3].stationId = 920;
-  stationMap[3].name = "Trudering Bf.";
-  stationMap[4].stationId = 1110;
-  stationMap[4].name = "Giesing Bf.";
-  stationMap[5].stationId = 1105;
-  stationMap[5].name = "Ostfriedhof";
+  // stationMap[3].stationId = 920;
+  // stationMap[3].name = "Trudering Bf.";
+  // stationMap[4].stationId = 1110;
+  // stationMap[4].name = "Giesing Bf.";
+  // stationMap[5].stationId = 1105;
+  // stationMap[5].name = "Ostfriedhof";
 }
 
 boolean isRelevantDestination(const char *destination)

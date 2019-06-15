@@ -26,22 +26,22 @@ struct Map
   uint16_t stationId;
   const char *name;
 };
-struct Map stationMap[6];
+struct Map stationMap[3];
 
 void setup()
 {
-  stationMap[0].stationId = 1;
-  stationMap[0].name = "Karlsplatz";
-  stationMap[1].stationId = 5;
-  stationMap[1].name = "Ostbahnhof";
+  stationMap[0].stationId = 34;
+  stationMap[0].name = "Nordbad";
+  stationMap[1].stationId = 670;
+  stationMap[1].name = "Arabellapark";
   stationMap[2].stationId = 1250;
   stationMap[2].name = "Messestadt West";
-  stationMap[3].stationId = 920;
-  stationMap[3].name = "Trudering Bf.";
-  stationMap[4].stationId = 1110;
-  stationMap[4].name = "Giesing Bf.";
-  stationMap[5].stationId = 1105;
-  stationMap[5].name = "Ostfriedhof";
+  // stationMap[3].stationId = 920;
+  // stationMap[3].name = "Trudering Bf.";
+  // stationMap[4].stationId = 1110;
+  // stationMap[4].name = "Giesing Bf.";
+  // stationMap[5].stationId = 1105;
+  // stationMap[5].name = "Ostfriedhof";
 
   if (epd.Init() != 0)
   {

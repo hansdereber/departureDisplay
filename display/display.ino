@@ -43,43 +43,32 @@ void setup()
   stationMap[5].stationId = 1105;
   stationMap[5].name = "Ostfriedhof";
 
-  Serial.begin(115200);
-
   if (epd.Init() != 0)
   {
-    Serial.print("e-Paper init failed");
     return;
   }
 
-  displayString("");
-
-  Bluefruit.autoConnLed(true);
+  Bluefruit.autoConnLed(false);
   Bluefruit.begin(1, 0);
-  Bluefruit.setTxPower(4);
+  Bluefruit.setTxPower(0);
   Bluefruit.setName("display");
   Bluefruit.setConnectCallback(connectCallback);
-  Bluefruit.setDisconnectCallback(disconnectCallback);
 
   clientUart.begin();
   clientUart.setRxCallback(bleUartRxCallback);
 
   startAdv();
+  suspendLoop();
 }
 
 void connectCallback(uint16_t conn_handle)
 {
-  displayString("connected");
-
   if (clientUart.discover(conn_handle))
   {
-    Serial.println("Found it");
-    Serial.println("Enable TXD's notify");
     clientUart.enableTXD();
-    Serial.println("Ready to receive from peripheral");
   }
   else
   {
-    Serial.println("Found NONE");
     Bluefruit.Central.disconnect(conn_handle);
   }
 }
@@ -115,31 +104,9 @@ void bleUartRxCallback(BLEClientUart &uart_svc)
     connections[1].departureTime = (payload[18] << 24) | (payload[17] << 16) | (payload[16] << 8) | payload[15];
     connections[1].minutesToDeparture = payload[19];
 
-    Serial.print("line1: ");
-    Serial.println(connections[0].line);
-    Serial.print("destinationId1: ");
-    Serial.println(String(connections[0].destinationId));
-    Serial.print("departureTime1: ");
-    Serial.println(String(connections[0].departureTime));
-    Serial.print("minutesToDeparture1: ");
-    Serial.println(String(connections[0].minutesToDeparture));
-    Serial.print("line2: ");
-    Serial.println(connections[1].line);
-    Serial.print("destinationId2: ");
-    Serial.println(String(connections[1].destinationId));
-    Serial.print("departureTime2: ");
-    Serial.println(String(connections[1].departureTime));
-    Serial.print("minutesToDeparture2: ");
-    Serial.println(String(connections[1].minutesToDeparture));
-
     uart_svc.flush();
     displayConnections();
   }
-}
-
-void disconnectCallback(uint16_t conn_handle, uint8_t reason)
-{
-  displayString("Not connected");
 }
 
 void startAdv(void)
@@ -150,17 +117,6 @@ void startAdv(void)
   Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
   Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
   Bluefruit.Advertising.start(0);             // 0 = Don't stop advertising after n seconds
-}
-
-void displayString(const char *text)
-{
-  return;
-  Paint paint(image, 400, 300);
-  paint.SetWidth(400);
-  paint.SetHeight(300);
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(0, 0, text, &LiberationMedium, COLORED);
-  displayFrameQuick(paint);
 }
 
 void displayConnections()
@@ -185,7 +141,7 @@ void displayConnections()
   displayFrameQuick(paint);
 }
 
-const char* findStationNameById(uint16_t id)
+const char *findStationNameById(uint16_t id)
 {
   for (int i = 0; i < sizeof(stationMap) / sizeof(stationMap[0]); i++)
   {
@@ -217,7 +173,6 @@ void sleep()
   epd.Sleep();
 }
 
-void loop() {
-    sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
-    __WFI();
+void loop()
+{
 }

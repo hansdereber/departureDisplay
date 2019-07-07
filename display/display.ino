@@ -51,7 +51,7 @@ void setup()
   Bluefruit.autoConnLed(false);
   Bluefruit.begin(1, 0);
   Bluefruit.setTxPower(0);
-  Bluefruit.setName("display");
+  Bluefruit.setName("departure display");
   Bluefruit.setConnectCallback(connectCallback);
 
   clientUart.begin();
@@ -116,6 +116,7 @@ void startAdv(void)
   Bluefruit.Advertising.restartOnDisconnect(true);
   Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
   Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
+  Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.start(0);             // 0 = Don't stop advertising after n seconds
 }
 

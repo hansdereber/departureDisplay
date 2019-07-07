@@ -1,0 +1,14 @@
+{
+  "name": "departure-display-central-rpi",
+  "version": "0.0.1",
+  "description": "This is the BLE Central for a hobby project using bluetooth low energy to communicate the public transport schedule to a wall clock: https://www.brokoko.eu/kitchen-clock-with-public-transport-schedule/",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Christian Geisler",
+  "license": "ISC",
+  "dependencies": {
+    "noble": "^1.9.1"
+  }
+}
